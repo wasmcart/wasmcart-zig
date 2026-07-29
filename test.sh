@@ -24,6 +24,13 @@ for f in wasmcart.zig wasmcart_gl.zig; do
 done
 
 echo
+echo "== constants must match the spec, not just each other"
+# The comptime block in wasmcart.zig proves the structs are self-consistent.
+# It cannot prove a CONSTANT is right, because it only compares this module
+# against itself. This compares it against wasmcart's own src/abi.js.
+node tools/abi-drift.mjs || exit 1
+
+echo
 echo "== build examples"
 zig build
 ls -l zig-out/bin
