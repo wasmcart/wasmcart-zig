@@ -146,8 +146,9 @@ pub const BTN_R3: u16 = 1 << 13;
 // ── Cart info flags (WcInfo.flags) ───────────────────────────────────
 
 pub const FLAG_AUDIO_F32: u32 = 1 << 0; // audio ring is f32 (default here)
-pub const FLAG_NET_WS: u32 = 1 << 1; // cart wants WebSocket imports
-pub const FLAG_NET_DC: u32 = 1 << 2; // cart wants data-channel imports
+pub const FLAG_NET_PEER: u32 = 1 << 1; // cart wants peer-connection imports
+// 1 << 2 is RESERVED AND UNUSED. It was FLAG_NET_DC until wasmcart 0.16.0
+// merged the WebSocket and data-channel families into wc_peer_*.
 pub const FLAG_POINTER: u32 = 1 << 3; // cart wants pointer input
 pub const FLAG_KEYBOARD: u32 = 1 << 4; // cart wants raw keyboard input
 pub const FLAG_DEBUG: u32 = 1 << 5; // cart exports wc_debug_state()
