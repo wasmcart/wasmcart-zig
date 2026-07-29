@@ -42,18 +42,37 @@ That is the whole loop. The template already contains `wasmcart.zig` and
 
 ## Installing the bindings
 
-**Copy `wasmcart.zig` and `wasmcart_gl.zig` next to your source** and import by
-path:
+Either as a package dependency, or by copying two files.
+
+**As a dependency:**
+
+```sh
+zig fetch --save=wasmcart https://github.com/wasmcart/wasmcart-zig/archive/refs/tags/v0.1.1.tar.gz
+```
+
+Then wire the module up in your `build.zig`:
+
+```zig
+const dep = b.dependency("wasmcart", .{});
+mod.addImport("wasmcart", dep.module("wasmcart"));
+```
+
+and import it by name:
+
+```zig
+const wc = @import("wasmcart");
+```
+
+**Or copy `wasmcart.zig` and `wasmcart_gl.zig`** next to your source and
+import by path:
 
 ```zig
 const wc = @import("wasmcart.zig");
 ```
 
-There is deliberately no Zig package manager dependency in this first release.
-The package manager's manifest format has changed in most recent Zig releases,
-and two files that never change are not worth inheriting that churn for. If you
-prefer a module, `build.zig` in this repo shows the `b.addModule` form and the
-examples import it as `@import("wasmcart")`.
+Both work. The copy is worth knowing about because the manifest format has
+changed in most recent Zig releases, and two files that never change are easy
+to vendor if a future Zig breaks the dependency route.
 
 ## Writing a cart
 
