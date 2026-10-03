@@ -303,7 +303,8 @@ pub const MAX_RUMBLE_MS: u32 = 5000;
 comptime {
     if (@sizeOf(WcPad) != PAD_SIZE) @compileError("WcPad must be 20 bytes");
     // ABI v4 widened buttons to u32 and triggers to i16, which moved
-    // `connected` from 14 to 16. Pin the offsets, not just the size.
+    // every field after `buttons`: `connected` went from byte 12 to 16, and
+    // byte 12 is now the low byte of left_trigger. Pin the offsets too.
     if (@offsetOf(WcPad, "left_x") != 4) @compileError("WcPad.left_x must be at 4");
     if (@offsetOf(WcPad, "left_trigger") != 12) @compileError("WcPad.left_trigger must be at 12");
     if (@offsetOf(WcPad, "right_trigger") != 14) @compileError("WcPad.right_trigger must be at 14");
