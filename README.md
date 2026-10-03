@@ -243,9 +243,11 @@ npx wasmcart hello.wasc --frames 30 --shot hello.png
 
 ## The ABI
 
-`wasmcart.zig` transcribes ABI v3 as `extern struct`s, which carry C layout
-guarantees, and a `comptime` block asserts every size and the v3 tail offsets
-(`pointer_ptr` at 56, `keys_ptr` at 60, `gpu_api` at 64) so a field reordering
+`wasmcart.zig` transcribes ABI v4 as `extern struct`s, which carry C layout
+guarantees, and a `comptime` block asserts every size, the `WcPad` offsets
+(20 bytes: `u32` buttons, six `i16` axes including the 0..32767 triggers,
+`connected` at 16) and the `WcInfo` tail offsets (`pointer_ptr` at 56,
+`keys_ptr` at 60, `gpu_api` at 64, `wheel_ptr` at 68) so a field reordering
 is a compile error rather than a silent misread.
 
 One quirk worth knowing: `WcTime` holds 20 bytes of data but is 8-byte aligned,

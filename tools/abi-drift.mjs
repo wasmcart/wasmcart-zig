@@ -79,6 +79,9 @@ const CONSTS = {
   PAD_SIZE: 'PAD_SIZE',
   POINTER_SIZE: 'POINTER_SIZE',
   DEBUG_FIELD_SIZE: 'DEBUG_FIELD_SIZE',
+  TRIGGER_MAX: 'TRIGGER_MAX',
+  WHEEL_SIZE: 'WHEEL_SIZE',
+  WHEEL_DELTA: 'WHEEL_DELTA',
 };
 
 /* Names the spec has RETIRED. A binding that still declares one is telling its
@@ -116,7 +119,7 @@ const order = [
   'version', 'width', 'height', 'fb_ptr', 'audio_ptr', 'audio_cap',
   'audio_write_ptr', 'input_ptr', 'save_ptr', 'save_size', 'time_ptr',
   'host_info_ptr', 'flags', 'audio_sample_rate', 'pointer_ptr', 'keys_ptr',
-  'gpu_api',
+  'gpu_api', 'wheel_ptr',
 ];
 const body = src.match(/pub const WcInfo\s*=\s*extern struct\s*\{([^}]*)\}/s);
 if (!body) {

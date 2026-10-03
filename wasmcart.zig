@@ -1,4 +1,4 @@
-//! wasmcart.zig - Zig bindings for the wasmcart ABI (version 3).
+//! wasmcart.zig - Zig bindings for the wasmcart ABI (version 4).
 //!
 //! Mirrors `wasmcart.h` and `wc_cart.h` from the wasmcart repo. This file is
 //! self-contained: copy it next to your cart source and `@import("wasmcart.zig")`.
@@ -124,24 +124,42 @@ pub const panic = struct {
 
 // ── ABI version ──────────────────────────────────────────────────────
 
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 4;
 
 // ── Buttons (wc_pad_t.buttons bitmask) ───────────────────────────────
 
-pub const BTN_A: u16 = 1 << 0;
-pub const BTN_B: u16 = 1 << 1;
-pub const BTN_X: u16 = 1 << 2;
-pub const BTN_Y: u16 = 1 << 3;
-pub const BTN_L: u16 = 1 << 4;
-pub const BTN_R: u16 = 1 << 5;
-pub const BTN_START: u16 = 1 << 6;
-pub const BTN_SELECT: u16 = 1 << 7;
-pub const BTN_UP: u16 = 1 << 8;
-pub const BTN_DOWN: u16 = 1 << 9;
-pub const BTN_LEFT: u16 = 1 << 10;
-pub const BTN_RIGHT: u16 = 1 << 11;
-pub const BTN_L3: u16 = 1 << 12;
-pub const BTN_R3: u16 = 1 << 13;
+pub const BTN_A: u32 = 1 << 0;
+pub const BTN_B: u32 = 1 << 1;
+pub const BTN_X: u32 = 1 << 2;
+pub const BTN_Y: u32 = 1 << 3;
+pub const BTN_L: u32 = 1 << 4;
+pub const BTN_R: u32 = 1 << 5;
+pub const BTN_START: u32 = 1 << 6;
+pub const BTN_SELECT: u32 = 1 << 7;
+pub const BTN_UP: u32 = 1 << 8;
+pub const BTN_DOWN: u32 = 1 << 9;
+pub const BTN_LEFT: u32 = 1 << 10;
+pub const BTN_RIGHT: u32 = 1 << 11;
+pub const BTN_L3: u32 = 1 << 12;
+pub const BTN_R3: u32 = 1 << 13;
+// ABI v4 additions, completing parity with SDL2's controller button set.
+// Bits 0-13 keep their meanings. A pad that lacks one of these never sets the
+// bit, so a cart may read them unconditionally. Bits 21-31 are reserved.
+pub const BTN_GUIDE: u32 = 1 << 14; // centre/home/logo button
+pub const BTN_MISC1: u32 = 1 << 15; // share/capture/microphone, varies by pad
+pub const BTN_PADDLE1: u32 = 1 << 16; // upper right paddle (Elite/Pro layouts)
+pub const BTN_PADDLE2: u32 = 1 << 17; // upper left paddle
+pub const BTN_PADDLE3: u32 = 1 << 18; // lower right paddle
+pub const BTN_PADDLE4: u32 = 1 << 19; // lower left paddle
+pub const BTN_TOUCHPAD: u32 = 1 << 20; // clicking the touchpad itself (DualShock)
+
+// ── Triggers (WcPad.left_trigger / right_trigger) ────────────────────
+
+/// Full travel on a trigger, matching SDL2 and libretro.
+pub const TRIGGER_MAX: i16 = 32767;
+/// Where a runtime presenting a trigger as a digital button should call it
+/// pressed (~10% of travel). A cart reading the analog value may pick its own.
+pub const TRIGGER_PRESSED: i16 = 3277;
 
 // ── Cart info flags (WcInfo.flags) ───────────────────────────────────
 
@@ -167,20 +185,22 @@ pub const GPU_API_VULKAN: u32 = 3; // reserved
 
 // ── Structs ──────────────────────────────────────────────────────────
 
-/// 16 bytes. One connected gamepad. The host writes this before wc_render.
+/// 20 bytes. One connected gamepad. The host writes this before wc_render.
+/// Every analog axis is i16 (ABI v4): sticks are -32768..32767 and triggers
+/// are 0..TRIGGER_MAX, the same ranges SDL2 and libretro report.
 pub const WcPad = extern struct {
-    buttons: u16 = 0,
+    buttons: u32 = 0, // BTN_* bitmask; bits 21-31 reserved
     left_x: i16 = 0,
     left_y: i16 = 0,
     right_x: i16 = 0,
     right_y: i16 = 0,
-    left_trigger: u8 = 0,
-    right_trigger: u8 = 0,
+    left_trigger: i16 = 0, // 0..TRIGGER_MAX, never negative
+    right_trigger: i16 = 0, // 0..TRIGGER_MAX, never negative
     connected: u8 = 0,
     _pad: [3]u8 = .{ 0, 0, 0 },
 
     /// True if `mask` (one of the BTN_* constants, or an OR of several) is held.
-    pub inline fn down(self: WcPad, mask: u16) bool {
+    pub inline fn down(self: WcPad, mask: u32) bool {
         return (self.buttons & mask) != 0;
     }
 };
@@ -211,7 +231,7 @@ pub const WcPointer = extern struct {
     _pad: [2]u8 = .{ 0, 0 },
 };
 
-/// 68 bytes, seventeen u32 fields. The ORDER IS LOAD-BEARING: the host reads
+/// 72 bytes, eighteen u32 fields. The ORDER IS LOAD-BEARING: the host reads
 /// this by byte offset. `wc_get_info` must return a pointer to a live instance
 /// of this (not a copy) because the host re-reads it after wc_init.
 pub const WcInfo = extern struct {
@@ -232,7 +252,20 @@ pub const WcInfo = extern struct {
     pointer_ptr: u32 = 0, // -> WcPointer[10], 0 = unused
     keys_ptr: u32 = 0, // -> [32]u8 key bitmask, 0 = unused
     gpu_api: u32 = GPU_API_NONE,
+    // -> WcWheel, 0 = unused (ABI v3.1). The host reads this word whether or
+    // not the cart uses a wheel, so it must exist and be 0 when unused.
+    wheel_ptr: u32 = 0,
 };
+
+/// 8 bytes (ABI v3.1). Scroll delta in 1/120 notch units. Host-written before
+/// wc_render and host-cleared after; the cart only reads.
+pub const WcWheel = extern struct {
+    dx: i32 = 0, // horizontal, right positive
+    dy: i32 = 0, // vertical, UP positive
+};
+
+/// One notch of a detented wheel, in WcWheel units.
+pub const WHEEL_DELTA = 120;
 
 /// 16 bytes. One entry in the OPTIONAL debug field table (see FLAG_DEBUG).
 pub const WcDebugField = extern struct {
@@ -255,11 +288,12 @@ pub const DBG_BYTES: u8 = 8;
 
 // ── Sizes (compile-time checked against the spec below) ──────────────
 
-pub const PAD_SIZE = 16;
+pub const PAD_SIZE = 20;
 pub const MAX_PADS = 4;
 pub const TIME_SIZE = 20;
 pub const HOST_INFO_SIZE = 20;
-pub const INFO_SIZE = 68;
+pub const INFO_SIZE = 72;
+pub const WHEEL_SIZE = 8;
 pub const POINTER_SIZE = 8;
 pub const MAX_POINTERS = 10;
 pub const KEYS_SIZE = 32;
@@ -267,7 +301,13 @@ pub const DEBUG_FIELD_SIZE = 16;
 pub const MAX_RUMBLE_MS: u32 = 5000;
 
 comptime {
-    if (@sizeOf(WcPad) != PAD_SIZE) @compileError("WcPad must be 16 bytes");
+    if (@sizeOf(WcPad) != PAD_SIZE) @compileError("WcPad must be 20 bytes");
+    // ABI v4 widened buttons to u32 and triggers to i16, which moved
+    // `connected` from 14 to 16. Pin the offsets, not just the size.
+    if (@offsetOf(WcPad, "left_x") != 4) @compileError("WcPad.left_x must be at 4");
+    if (@offsetOf(WcPad, "left_trigger") != 12) @compileError("WcPad.left_trigger must be at 12");
+    if (@offsetOf(WcPad, "right_trigger") != 14) @compileError("WcPad.right_trigger must be at 14");
+    if (@offsetOf(WcPad, "connected") != 16) @compileError("WcPad.connected must be at 16");
     if (@sizeOf(WcTime) != TIME_SIZE + 4) {
         // wc_time_t is 20 bytes of DATA but 8-byte aligned, so Zig's @sizeOf
         // rounds to 24. Only the first 20 bytes are read by the host, and the
@@ -280,12 +320,14 @@ comptime {
     if (@offsetOf(WcTime, "frame") != 16) @compileError("WcTime.frame must be at 16");
     if (@sizeOf(WcHostInfo) != HOST_INFO_SIZE) @compileError("WcHostInfo must be 20 bytes");
     if (@sizeOf(WcPointer) != POINTER_SIZE) @compileError("WcPointer must be 8 bytes");
-    if (@sizeOf(WcInfo) != INFO_SIZE) @compileError("WcInfo must be 68 bytes");
+    if (@sizeOf(WcInfo) != INFO_SIZE) @compileError("WcInfo must be 72 bytes");
+    if (@sizeOf(WcWheel) != WHEEL_SIZE) @compileError("WcWheel must be 8 bytes");
     if (@sizeOf(WcDebugField) != DEBUG_FIELD_SIZE) @compileError("WcDebugField must be 16 bytes");
     // The v3 tail is the part hand-written bindings get wrong. Pin it.
     if (@offsetOf(WcInfo, "pointer_ptr") != 56) @compileError("WcInfo.pointer_ptr must be at 56");
     if (@offsetOf(WcInfo, "keys_ptr") != 60) @compileError("WcInfo.keys_ptr must be at 60");
     if (@offsetOf(WcInfo, "gpu_api") != 64) @compileError("WcInfo.gpu_api must be at 64");
+    if (@offsetOf(WcInfo, "wheel_ptr") != 68) @compileError("WcInfo.wheel_ptr must be at 68");
 }
 
 // ── Keyboard scancodes (USB HID) ─────────────────────────────────────
